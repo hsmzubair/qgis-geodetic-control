@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Demo application schema for geodetic control point exchange.
+
+  It mirrors the GML feature-collection pattern (collection / featureMember / feature
+  with an id, a CRS-tagged position and attributes) but is self-contained so it can be
+  validated offline. A production version would import the official GML 3.2.1 schema
+  and the GUGiK/PZGiK application schemas through a local XML catalog.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:gc="urn:demo:geodetic-control:1.0"
+           targetNamespace="urn:demo:geodetic-control:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified"
+           version="1.0">
+
+  <xs:element name="ControlPointCollection">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="metadata" type="gc:MetadataType"/>
+        <xs:element name="featureMember" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="gc:ControlPoint"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+    <xs:unique name="uniquePointNo">
+      <xs:selector xpath="gc:featureMember/gc:ControlPoint"/>
+      <xs:field xpath="gc:pointNo"/>
+    </xs:unique>
+  </xs:element>
+
+  <xs:complexType name="MetadataType">
+    <xs:sequence>
+      <xs:element name="createdAt" type="xs:dateTime"/>
+      <xs:element name="producer" type="xs:string"/>
+      <xs:element name="featureCount" type="xs:nonNegativeInteger"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="ControlPoint">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="pointNo" type="gc:PointNoType"/>
+        <xs:element name="pointClass" type="gc:PointClassType"/>
+        <xs:element name="position" type="gc:PositionType"/>
+        <xs:element name="height" type="gc:HeightType" minOccurs="0"/>
+        <xs:element name="status" type="gc:StatusType"/>
+        <xs:element name="lastSurveyed" type="xs:date" minOccurs="0"/>
+        <xs:element name="description" type="xs:string" minOccurs="0"/>
+      </xs:sequence>
+      <xs:attribute name="id" type="xs:ID" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:simpleType name="PointNoType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{4}-\d{4}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="PointClassType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="I"/>
+      <xs:enumeration value="II"/>
+      <xs:enumeration value="III"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="StatusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="active"/>
+      <xs:enumeration value="damaged"/>
+      <xs:enumeration value="destroyed"/>
+      <xs:enumeration value="not_found"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- "easting northing", like gml:pos, tagged with the CRS -->
+  <xs:simpleType name="DoubleList">
+    <xs:list itemType="xs:double"/>
+  </xs:simpleType>
+  <xs:simpleType name="Pos2D">
+    <xs:restriction base="gc:DoubleList">
+      <xs:length value="2"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="PositionType">
+    <xs:simpleContent>
+      <xs:extension base="gc:Pos2D">
+        <xs:attribute name="srsName" use="required">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="EPSG:\d{4,5}"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:attribute>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="HeightType">
+    <xs:simpleContent>
+      <xs:extension base="xs:decimal">
+        <xs:attribute name="system" use="required">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="PL-EVRF2007-NH"/>
+              <xs:enumeration value="PL-KRON86-NH"/>
+              <xs:enumeration value="ellipsoidal"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:attribute>
+        <xs:attribute name="uom" type="xs:string" fixed="m"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+</xs:schema>
