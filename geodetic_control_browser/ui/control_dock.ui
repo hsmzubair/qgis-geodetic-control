@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ControlDockBase</class>
+ <widget class="QDockWidget" name="ControlDockBase">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>420</width><height>860</height></rect>
+  </property>
+  <property name="windowTitle">
+   <string>Geodetic Control Browser</string>
+  </property>
+  <widget class="QWidget" name="dockContents">
+   <layout class="QVBoxLayout" name="mainLayout">
+    <item>
+     <widget class="QGroupBox" name="connectionGroup">
+      <property name="title"><string>PostGIS connection</string></property>
+      <layout class="QHBoxLayout" name="connectionLayout">
+       <item><widget class="QComboBox" name="connCombo"/></item>
+       <item>
+        <widget class="QPushButton" name="loadButton">
+         <property name="text"><string>Load points</string></property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="filterLayout">
+      <item>
+       <widget class="QLineEdit" name="searchEdit">
+        <property name="placeholderText"><string>Search point number or description</string></property>
+        <property name="clearButtonEnabled"><bool>true</bool></property>
+       </widget>
+      </item>
+      <item><widget class="QComboBox" name="statusFilter"/></item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QTableWidget" name="pointsTable">
+      <property name="minimumSize"><size><width>0</width><height>220</height></size></property>
+      <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property>
+      <property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property>
+      <property name="sortingEnabled"><bool>true</bool></property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="editGroup">
+      <property name="title"><string>Selected point</string></property>
+      <layout class="QFormLayout" name="editForm">
+       <item row="0" column="0"><widget class="QLabel" name="lblNo"><property name="text"><string>Point no.</string></property></widget></item>
+       <item row="0" column="1"><widget class="QLineEdit" name="pointNoEdit"><property name="inputMask"><string>9999-9999</string></property></widget></item>
+       <item row="1" column="0"><widget class="QLabel" name="lblClass"><property name="text"><string>Class</string></property></widget></item>
+       <item row="1" column="1"><widget class="QComboBox" name="classCombo"/></item>
+       <item row="2" column="0"><widget class="QLabel" name="lblStatus"><property name="text"><string>Status</string></property></widget></item>
+       <item row="2" column="1"><widget class="QComboBox" name="statusCombo"/></item>
+       <item row="3" column="0"><widget class="QLabel" name="lblHeight"><property name="text"><string>Height [m]</string></property></widget></item>
+       <item row="3" column="1">
+        <layout class="QHBoxLayout" name="heightLayout">
+         <item><widget class="QCheckBox" name="hasHeightCheck"><property name="text"><string>Has height</string></property></widget></item>
+         <item>
+          <widget class="QDoubleSpinBox" name="heightSpin">
+           <property name="decimals"><number>3</number></property>
+           <property name="minimum"><double>-50.000000000000000</double></property>
+           <property name="maximum"><double>3000.000000000000000</double></property>
+          </widget>
+         </item>
+         <item><widget class="QComboBox" name="heightSystemCombo"/></item>
+        </layout>
+       </item>
+       <item row="4" column="0"><widget class="QLabel" name="lblSurveyed"><property name="text"><string>Last surveyed</string></property></widget></item>
+       <item row="4" column="1"><widget class="QDateEdit" name="surveyedDate"><property name="calendarPopup"><bool>true</bool></property><property name="displayFormat"><string>yyyy-MM-dd</string></property></widget></item>
+       <item row="5" column="0"><widget class="QLabel" name="lblDesc"><property name="text"><string>Description</string></property></widget></item>
+       <item row="5" column="1"><widget class="QLineEdit" name="descriptionEdit"/></item>
+       <item row="6" column="1">
+        <layout class="QHBoxLayout" name="editButtons">
+         <item><widget class="QPushButton" name="zoomButton"><property name="text"><string>Zoom to</string></property></widget></item>
+         <item><widget class="QPushButton" name="historyButton"><property name="text"><string>History</string></property></widget></item>
+         <item><widget class="QPushButton" name="saveButton"><property name="text"><string>Validate &amp;&amp; save</string></property></widget></item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="transformGroup">
+      <property name="title"><string>Coordinate / height transformation</string></property>
+      <layout class="QGridLayout" name="transformLayout">
+       <item row="0" column="0"><widget class="QLabel" name="lblTarget"><property name="text"><string>Target system</string></property></widget></item>
+       <item row="0" column="1"><widget class="QComboBox" name="targetCombo"/></item>
+       <item row="1" column="0"><widget class="QPushButton" name="opsButton"><property name="text"><string>Show operations</string></property></widget></item>
+       <item row="1" column="1"><widget class="QPushButton" name="transformButton"><property name="text"><string>Transform selected</string></property></widget></item>
+       <item row="2" column="0" colspan="2"><widget class="QPushButton" name="heightButton"><property name="text"><string>Ellipsoidal → PL-EVRF2007-NH (geoid2021)</string></property></widget></item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="exportButton">
+      <property name="text"><string>Export GML (validated against XSD)…</string></property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPlainTextEdit" name="messagesText">
+      <property name="readOnly"><bool>true</bool></property>
+      <property name="maximumBlockCount"><number>500</number></property>
+      <property name="placeholderText"><string>Messages, validation results and transformation output appear here.</string></property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
