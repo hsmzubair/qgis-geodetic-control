@@ -17,6 +17,7 @@ from qgis.core import (
     QgsProviderRegistry,
     QgsRectangle,
     QgsRendererCategory,
+    QgsSettings,
     QgsVectorLayer,
 )
 from qgis.PyQt import uic
@@ -62,15 +63,54 @@ class ControlDockWidget(BASE_CLASS, FORM_CLASS):
         self.surveyedDate.setMaximumDate(QDate.currentDate())
 
     def _fill_connections(self):
+        """List saved PostgreSQL connections (the same ones DB Manager and the Browser use)."""
+        current = self.connCombo.currentText()
         self.connCombo.clear()
-        md = QgsProviderRegistry.instance().providerMetadata("postgres")
-        for name in sorted(md.connections().keys()):
-            self.connCombo.addItem(name)
+        for name, uri in sorted(self._saved_pg_connections().items()):
+            self.connCombo.addItem(name, uri)
         if self.connCombo.count() == 0:
-            self.log("No PostGIS connections found. Add one in the Browser panel first.")
+            self.log("No PostgreSQL connections found. Add one in the Browser panel "
+                     "(PostgreSQL > New Connection), then click Refresh.")
+        elif current:
+            self.connCombo.setCurrentText(current)
+
+    def _saved_pg_connections(self) -> dict:
+        """Return {connection name: URI}. Uses the connections API first, then falls back to
+        reading the saved settings directly (some QGIS builds return an empty list from the API)."""
+        found = {}
+        md = QgsProviderRegistry.instance().providerMetadata("postgres")
+        try:
+            for name, conn in md.connections(False).items():
+                found[name] = conn.uri()
+        except Exception as e:  # noqa: BLE001 - report and fall back
+            self.log(f"Connections API unavailable ({e}); reading saved settings instead.")
+
+        s = QgsSettings()
+        s.beginGroup("PostgreSQL/connections")
+        names = s.childGroups()
+        s.endGroup()
+        for name in names:
+            if name in found:
+                continue
+            key = f"PostgreSQL/connections/{name}/"
+            uri = QgsDataSourceUri()
+            user = s.value(key + "username", "") if _truthy(s.value(key + "saveUsername", True)) else ""
+            pwd = s.value(key + "password", "") if _truthy(s.value(key + "savePassword", False)) else ""
+            ssl = _ssl_mode(s.value(key + "sslmode", 0))
+            authcfg = s.value(key + "authcfg", "") or ""
+            service = s.value(key + "service", "") or ""
+            db = s.value(key + "database", "") or ""
+            if service:
+                uri.setConnection(service, db, user, pwd, ssl, authcfg)
+            else:
+                uri.setConnection(s.value(key + "host", "localhost") or "localhost",
+                                  str(s.value(key + "port", "5432") or "5432"), db, user, pwd, ssl, authcfg)
+            found[name] = uri.uri(False)
+        return found
 
     def _connect_signals(self):
         self.loadButton.clicked.connect(self.load_layer)
+        self.refreshConnButton.clicked.connect(self._fill_connections)
         self.searchEdit.textChanged.connect(self.refresh_table)
         self.statusFilter.currentIndexChanged.connect(self.refresh_table)
         self.pointsTable.itemSelectionChanged.connect(self.on_selection_changed)
@@ -119,16 +159,25 @@ class ControlDockWidget(BASE_CLASS, FORM_CLASS):
     # ---------------------------------------------------------------- load
     def load_layer(self):
         name = self.connCombo.currentText()
-        if not name:
+        conn_uri = self.connCombo.currentData()
+        if not name or not conn_uri:
+            self._fill_connections()
             return
-        md = QgsProviderRegistry.instance().providerMetadata("postgres")
-        self.connection = md.connections()[name]
-        uri = QgsDataSourceUri(self.connection.uri())
+        uri = QgsDataSourceUri(conn_uri)
         uri.setDataSource(SCHEMA, TABLE, GEOM_COL, "", KEY_COL)
         layer = QgsVectorLayer(uri.uri(False), "Geodetic control points", "postgres")
         if not layer.isValid():
-            self.log(f"Could not open {SCHEMA}.{TABLE} on '{name}'. Run sql/schema.sql first.")
+            detail = layer.dataProvider().error().summary() if layer.dataProvider() else ""
+            self.log(f"Could not open {SCHEMA}.{TABLE} on '{name}'. "
+                     f"Check that sql/schema.sql was run in this database. {detail}".strip())
             return
+        # A database connection object is used for the History query.
+        try:
+            md = QgsProviderRegistry.instance().providerMetadata("postgres")
+            self.connection = md.createConnection(conn_uri, {})
+        except Exception as e:  # noqa: BLE001
+            self.connection = None
+            self.log(f"History is unavailable for this connection ({e}).")
         self._style_layer(layer)
         QgsProject.instance().addMapLayer(layer)
         self.layer = layer
@@ -136,6 +185,12 @@ class ControlDockWidget(BASE_CLASS, FORM_CLASS):
         self.refresh_table()
         self._set_edit_enabled(True)
         self.log(f"Loaded {layer.featureCount()} points from '{name}' ({layer.crs().authid()}).")
+
+    def showEvent(self, event):  # noqa: N802 (Qt API name)
+        # Pick up connections added while the dock was hidden.
+        if self.layer is None:
+            self._fill_connections()
+        super().showEvent(event)
 
     def _style_layer(self, layer):
         cats = []
@@ -359,6 +414,23 @@ class ControlDockWidget(BASE_CLASS, FORM_CLASS):
             for e in errors[:20]:
                 self.log("  " + e)
             QMessageBox.warning(self, "GML not exported", "Validation failed. See the messages panel.")
+
+
+def _truthy(value) -> bool:
+    return str(value).lower() in ("true", "1", "yes")
+
+
+def _ssl_mode(value):
+    """Settings store sslmode as an int or an enum name depending on the QGIS version."""
+    names = {"SslPrefer": 0, "SslDisable": 1, "SslAllow": 2, "SslRequire": 3, "SslVerifyCa": 4, "SslVerifyFull": 5}
+    try:
+        code = int(value)
+    except (TypeError, ValueError):
+        code = names.get(str(value), 0)
+    try:
+        return QgsDataSourceUri.SslMode(code)
+    except Exception:  # noqa: BLE001
+        return QgsDataSourceUri.SslPrefer
 
 
 def _diff(old, new) -> str:
